@@ -273,11 +273,17 @@ namespace StarterAssets
             Vector3 directMovement = transform.forward;
             targetDirection = Vector3.Lerp(targetDirection, directMovement, directMoveBlend);
             // move the player
+            Vector3 horizontal = Vector3.zero;
             if (canMove)
             {
-                _controller.Move(targetDirection.normalized * (_speed * Time.deltaTime) +
-                             new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
+                horizontal = targetDirection.normalized * (_speed * Time.deltaTime);
             }
+
+            Vector3 vertical = new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime;
+
+            // always move so gravity still applies when canMove == false
+            _controller.Move(horizontal + vertical);
+
            
             // update animator if using character
             if (_hasAnimator)
