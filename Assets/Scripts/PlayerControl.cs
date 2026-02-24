@@ -17,8 +17,7 @@ public class PlayerControl : MonoBehaviour
     [SerializeField] private Transform attackPos;
     [Tooltip("Offset Stoping Distance")][SerializeField] private float quickAttackDeltaDistance;
     [Tooltip("Offset Stoping Distance")][SerializeField] private float heavyAttackDeltaDistance;
-    [SerializeField] private float knockbackForce = 10f; 
-    [SerializeField] private float airknockbackForce = 10f; 
+    [SerializeField] private float knockbackForce = 5f;
     [SerializeField] private float attackRange = 1f;
     [SerializeField] private float reachTime = 0.3f;
     [SerializeField] private LayerMask enemyLayer;
@@ -44,6 +43,8 @@ public class PlayerControl : MonoBehaviour
     
     private EnemyBase oldTarget;
     private EnemyBase currentTarget;
+    
+    private readonly HashSet<EnemyBase> hitThisSwing = new HashSet<EnemyBase>();
 
     // Start is called before the first frame update
     void Start()
@@ -220,38 +221,60 @@ public class PlayerControl : MonoBehaviour
 
     public void PerformAttack() //Animation event
     {
-        Collider[] hitEnemies = Physics.OverlapSphere(attackPos.position, attackRange, enemyLayer);
+        hitThisSwing.Clear();
+        
+        Collider[] cols = Physics.OverlapSphere(
+            attackPos.position,
+            attackRange,
+            enemyLayer,
+            QueryTriggerInteraction.Ignore
+        );
 
-        foreach (Collider enemy in hitEnemies)
+        if (debug) Debug.Log($"PerformAttack hits={cols.Length}");
+
+        foreach (var col in cols)
         {
-            Rigidbody enemyRb = enemy.GetComponent<Rigidbody>();
-            EnemyBase enemyBase = enemy.GetComponent<EnemyBase>();
-            if (enemyRb != null)
+            var enemyBase = col.GetComponentInParent<EnemyBase>();
+            if (enemyBase == null)
             {
-                Vector3 knockbackDirection = enemy.transform.position - transform.position;
-                knockbackDirection.y = airknockbackForce;
-                //enemyRb.AddForce(knockbackDirection.normalized * knockbackForce, ForceMode.Impulse);
-                //this above is for the knockback of the targets, I might need to tune it down in the future or completely remove it
-                enemyBase.SpawnHitVfx(enemyBase.transform.position);
+                if (debug) Debug.Log($"Overlap hit {col.name} but no EnemyBase in parents.");
+                continue;
             }
+            
+            if (!hitThisSwing.Add(enemyBase)) continue;
+
+            if (debug) Debug.Log($"Hit enemy: {enemyBase.name} via collider {col.name}");
+
+            enemyBase.PlayHitReaction();
+            enemyBase.SpawnHitVfx(enemyBase.transform.position);
+        
+            //knockback
+            Vector3 knockbackDir = (enemyBase.transform.position - transform.position);
+            knockbackDir.y = 0;
+            knockbackDir.Normalize();
+            enemyBase.ApplyKnockback(knockbackDir, knockbackForce);
         }
     }
     
     public void ChangeTarget(Transform target_)
     {
-        
-        if(target != null)
-            oldTarget.ActiveTarget(false);
-        
-        target = target_;
-        oldTarget = target_.GetComponent<EnemyBase>();
-        currentTarget = target_.GetComponent<EnemyBase>();
+        var newEnemy = target_.GetComponentInParent<EnemyBase>() ?? target_.GetComponentInChildren<EnemyBase>();
+        if (newEnemy == null) return;
+
+        if (currentTarget != null)
+            currentTarget.ActiveTarget(false);
+
+        target = newEnemy.transform;
+        oldTarget = currentTarget;
+        currentTarget = newEnemy;
         currentTarget.ActiveTarget(true);
     }
 
     private void NoTarget() // When player gets out of range of current Target
     {
-        currentTarget.ActiveTarget(false);
+        if (currentTarget != null)
+            currentTarget.ActiveTarget(false);
+
         currentTarget = null;
         oldTarget = null;
         target = null;

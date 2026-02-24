@@ -74,15 +74,14 @@ public class TargetDetectionControl : MonoBehaviour
         //direct hit
         if (Physics.Raycast(rayOrigin, rayDir, out RaycastHit hit, detectionRange, whatIsEnemy, QueryTriggerInteraction.Ignore))
         {
-            if (WithinPlayerRange(hit.transform))
+            var enemyBase = hit.collider.GetComponentInParent<EnemyBase>();
+            if (enemyBase != null && WithinPlayerRange(enemyBase.transform))
             {
-                if (playerControl.target != hit.transform)
-                {
-                    playerControl.ChangeTarget(hit.transform);
-                    if (debug) Debug.Log("Target (ray hit): " + hit.transform.name);
-                }
+                if (playerControl.target != enemyBase.transform)
+                    playerControl.ChangeTarget(enemyBase.transform);
+
+                return;
             }
-            return;
         }
         
         //aim assist
@@ -122,9 +121,11 @@ public class TargetDetectionControl : MonoBehaviour
 
         foreach (var col in cols)
         {
-            if (col == null) continue;
+            var enemyBase = col.GetComponentInParent<EnemyBase>();
+            if (enemyBase == null) continue;
 
-            Transform enemy = col.transform;
+            Transform enemy = enemyBase.transform;
+
             if (!WithinPlayerRange(enemy)) continue;
 
             float score = DistancePointToRay(enemy.position, rayOrigin, rayDir);
