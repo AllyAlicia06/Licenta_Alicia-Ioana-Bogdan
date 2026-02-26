@@ -98,10 +98,12 @@ public class PlayerControl : MonoBehaviour
         bufferedLight = false;
         comboWindowOpenedThisStep = false;
         
-        if (target == null)
+        var targetEnemy = target != null ? target.GetComponentInParent<EnemyBase>() : null;
+        if (target == null || (targetEnemy != null && targetEnemy.IsDead))
         {
             thirdPersonController.canMove = true;
             TargetDetectionControl.instance.canChangeTarget = true;
+            NoTarget();
             return;
         }
 
@@ -142,10 +144,12 @@ public class PlayerControl : MonoBehaviour
     
     void HeavyAttack()
     {
-        if (target == null)
+        var targetEnemy = target != null ? target.GetComponentInParent<EnemyBase>() : null;
+        if (target == null || (targetEnemy != null && targetEnemy.IsDead))
         {
             thirdPersonController.canMove = true;
             TargetDetectionControl.instance.canChangeTarget = true;
+            NoTarget();
             return;
         }
         
@@ -243,10 +247,16 @@ public class PlayerControl : MonoBehaviour
             
             if (!hitThisSwing.Add(enemyBase)) continue;
 
-            if (debug) Debug.Log($"Hit enemy: {enemyBase.name} via collider {col.name}");
-
-            enemyBase.PlayHitReaction();
+            int damage = 2;
+            enemyBase.TakeDamage(damage);
+            enemyBase.ShowDamageText(damage);
+            if (enemyBase.IsDead) continue;
             enemyBase.SpawnHitVfx(enemyBase.transform.position);
+
+            if (enemyBase.IsDead)
+                continue;
+
+            if (debug) Debug.Log($"Hit enemy: {enemyBase.name} via collider {col.name}");
         
             //knockback
             Vector3 knockbackDir = (enemyBase.transform.position - transform.position);
@@ -270,7 +280,7 @@ public class PlayerControl : MonoBehaviour
         currentTarget.ActiveTarget(true);
     }
 
-    private void NoTarget() // When player gets out of range of current Target
+    public void NoTarget() // When player gets out of range of current Target
     {
         if (currentTarget != null)
             currentTarget.ActiveTarget(false);
@@ -289,11 +299,18 @@ public class PlayerControl : MonoBehaviour
     }
 
     public void GetClose() //Animation event
-    {
-        Vector3 getCloseTarget = target != null ? target.position : oldTarget.transform.position;
-        FaceThis(getCloseTarget);
-        Vector3 finalPos = TargetOffset(getCloseTarget, 1.4f);
-        finalPos.y = 0;
+    { 
+        Transform t = target;
+
+        if (t == null && oldTarget != null)
+            t = oldTarget.transform;
+
+        if (t == null) return;
+
+        FaceThis(t.position);
+
+        Vector3 finalPos = TargetOffset(t.position, 1.4f);
+        finalPos.y = 0f;
         transform.DOMove(finalPos, 0.2f);
     }
 

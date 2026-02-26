@@ -25,6 +25,8 @@ public class EnemyBase : MonoBehaviour
     [SerializeField] private Animator animator;
     [SerializeField] private string speedParam = "Speed";
     [SerializeField] private string attackTrigger = "Attack";
+    [SerializeField] private string dieTrigger = "Die";
+    [SerializeField] private string deadBool = "Dead";
     
     [Header("Hit Reaction")]
     [SerializeField] private string hitTrigger = "Hit";
@@ -36,6 +38,7 @@ public class EnemyBase : MonoBehaviour
     private float attackAnimTimer = 0f;
     private float attackTimer = 0f;
     private bool isPlayingAttackAnim = false;
+    private float lastPunchTime = -999f;
 
     [Header("Hit Animation Timing")]
     [SerializeField] private float hitAnimLockTime = 1.25f;
@@ -53,7 +56,16 @@ public class EnemyBase : MonoBehaviour
     [SerializeField] private LayerMask playerLayer;
     [SerializeField] private float perPunchCooldown = 0.05f;
 
-    private float lastPunchTime = -999f;
+    [Header("Health")]
+    [SerializeField] private int maxHP = 10;
+    private int hp;
+    private bool isDead;
+    
+    public bool IsDead => isDead;
+    private bool AgentValid() //for easier control of the navmesh agent
+    {
+        return agent != null && agent.enabled && agent.isOnNavMesh;
+    }
 
     private Coroutine knockbackCoroutine;
     private NavMeshAgent agent;
@@ -61,11 +73,16 @@ public class EnemyBase : MonoBehaviour
     
     [Header("Facing Offset")]
     [SerializeField] private float attackYawOffsetDegrees = 10f;
-
+    
+    [Header("Damage Text")]
+    [SerializeField] private DamageText3D damageTextPrefab;
+    [SerializeField] private Transform damagePopupPoint;
 
     // Start is called before the first frame update
     void Start()
     {
+        hp = maxHP;
+        
         agent = GetComponent<NavMeshAgent>();
         if (!agent.isOnNavMesh)
         {
@@ -75,11 +92,16 @@ public class EnemyBase : MonoBehaviour
         
         agent.stoppingDistance = 0.05f;
         agent.autoBraking = false;
-
         agent.nextPosition = transform.position;
-        agent.isStopped = false;
+        if (AgentValid()) agent.isStopped = false;
+        if (agent != null) agent.updateRotation = true;
         if (animator == null) animator = GetComponentInChildren<Animator>();
-        agent.updateRotation = true;
+
+        if (animator != null)
+        {
+            animator.SetBool(deadBool, false);
+            animator.ResetTrigger(dieTrigger);
+        }
         
         Rigidbody rb = GetComponent<Rigidbody>();
         if (rb != null)
@@ -96,7 +118,7 @@ public class EnemyBase : MonoBehaviour
     
     void LateUpdate()
     {
-        if (agent == null || !agent.enabled || !agent.isOnNavMesh) return;
+        if (!AgentValid()) return;
         
         if (inKnockback || isPlayingAttackAnim || isPlayingHitAnim)
         {
@@ -109,7 +131,7 @@ public class EnemyBase : MonoBehaviour
     
     private void HardStopAgentAtCurrentPosition(bool lockRotation)
     {
-        if (agent == null || !agent.enabled) return;
+        if (!AgentValid()) return;
 
         agent.ResetPath();
         agent.isStopped = true;
@@ -120,9 +142,11 @@ public class EnemyBase : MonoBehaviour
     
     void Update()
     {
+        if (isDead) return;
+        if (!AgentValid()) return;
         if (target == null) return;
         if (inKnockback) return;
-        
+
         attackTimer -= Time.deltaTime;
         attackAnimTimer -= Time.deltaTime;
         hitAnimTimer -= Time.deltaTime;
@@ -158,26 +182,27 @@ public class EnemyBase : MonoBehaviour
                 {
                     state = State.Idle;
                     ActiveTarget(false);
-                    agent.ResetPath();
+                    if (AgentValid()) agent.ResetPath();
                     break;
                 }
 
                 if (distance <= attackRange && !isPlayingAttackAnim && !isPlayingHitAnim)
                 {
                     state = State.Attack;
-                    agent.ResetPath();
+                    if (AgentValid()) agent.ResetPath();
                     break;
                 }
 
-                agent.isStopped = false;
-                agent.updateRotation = true;
-
-                agent.nextPosition = transform.position;
-
-                if (agent.enabled && agent.isOnNavMesh)
+                if (AgentValid())
+                {
+                    agent.isStopped = false;
+                    agent.updateRotation = true;
+                    agent.nextPosition = transform.position;
                     agent.SetDestination(target.position);
 
-                animator.SetFloat(speedParam, agent.velocity.magnitude);
+                    animator.SetFloat(speedParam, agent.velocity.magnitude);
+                }
+                
                 break;
 
             case State.Attack:
@@ -238,6 +263,7 @@ public class EnemyBase : MonoBehaviour
     
     public void ApplyKnockback(Vector3 direction, float force)
     {
+        if (isDead) return;
         if (knockbackCoroutine != null) StopCoroutine(knockbackCoroutine);
         knockbackCoroutine = StartCoroutine(KnockbackRoutine(direction, force));
     }
@@ -249,7 +275,7 @@ public class EnemyBase : MonoBehaviour
         float duration = 0.2f;
         float elapsed = 0f;
 
-        if (agent != null && agent.enabled)
+        if (AgentValid())
         {
             agent.ResetPath();
             agent.isStopped = true;
@@ -268,14 +294,14 @@ public class EnemyBase : MonoBehaviour
 
             transform.position = next;
 
-            if (agent != null && agent.enabled)
+            if (AgentValid())
                 agent.nextPosition = next;
 
             elapsed += Time.deltaTime;
             yield return null;
         }
         
-        if (agent != null && agent.enabled)
+        if (AgentValid())
         {
             Vector3 finalPos = transform.position;
 
@@ -287,7 +313,7 @@ public class EnemyBase : MonoBehaviour
             transform.position = finalPos;
         }
 
-        if (agent != null && agent.enabled && agent.isOnNavMesh)
+        if (AgentValid())
         {
             if (state == State.Attack || isPlayingAttackAnim || isPlayingHitAnim)
             {
@@ -329,6 +355,8 @@ public class EnemyBase : MonoBehaviour
     
     public void TryHitAt() //Animation event
     {
+        if (isDead) return;
+        
         if (Time.time - lastPunchTime < perPunchCooldown) return;
         lastPunchTime = Time.time;
         
@@ -348,11 +376,11 @@ public class EnemyBase : MonoBehaviour
     
     public void OnAttackAnimEnd() //Animation event
     {
-        if (agent != null && agent.enabled)
-        {
-            agent.nextPosition = transform.position;
-            agent.velocity = Vector3.zero;
-        }
+        if (isDead) return;
+        if (!AgentValid()) return;
+        
+        agent.nextPosition = transform.position;
+        agent.velocity = Vector3.zero;
         
         isPlayingAttackAnim = false;
         attackAnimTimer = 0f;
@@ -368,24 +396,91 @@ public class EnemyBase : MonoBehaviour
         else
         {
             state = State.Chase;
-            if (agent != null && agent.enabled && agent.isOnNavMesh)
-            {
-                agent.isStopped = false;
-                agent.updateRotation = true;
-            }
+            agent.isStopped = false;
+            agent.updateRotation = true;
         }
     }
     
     public void OnHitAnimEnd() //Animation event
     {
+        if (isDead) return;
+        
         isPlayingHitAnim = false;
         hitAnimTimer = 0f;
 
-        if (agent != null && agent.enabled)
+        if (!AgentValid()) return;
+        agent.nextPosition = transform.position;
+        agent.velocity = Vector3.zero;
+    }
+
+    public void OnDeathAnimEnd() //Animation event
+    {
+        Destroy(gameObject);
+    }
+    
+    public void TakeDamage(int amount)
+    {
+        if (isDead) return;
+
+        hp -= amount;
+        if (hp <= 0)
         {
-            agent.nextPosition = transform.position;
+            Die();
+            return;
+        }
+        PlayHitReaction();
+    }
+
+    private void Die()
+    {
+        if (isDead) return;
+        isDead = true;
+
+        ActiveTarget(false);
+        
+        if (knockbackCoroutine != null)
+        {
+            StopCoroutine(knockbackCoroutine);
+            knockbackCoroutine = null;
+        }
+        inKnockback = false;
+        
+        isPlayingAttackAnim = false;
+        isPlayingHitAnim = false;
+        attackAnimTimer = 0f;
+        hitAnimTimer = 0f;
+        
+        foreach (var c in GetComponentsInChildren<Collider>())
+            c.enabled = false;
+        
+        if (AgentValid())
+        {
+            agent.ResetPath();
+            agent.isStopped = true;
             agent.velocity = Vector3.zero;
         }
+        if (agent != null) agent.enabled = false;
+        
+        if (animator != null)
+        {
+            animator.ResetTrigger(attackTrigger);
+            animator.ResetTrigger(hitTrigger);
+            animator.SetBool(deadBool, true);
+            animator.ResetTrigger(dieTrigger);
+            animator.SetTrigger(dieTrigger);
+        }
+    }
+    
+    public void ShowDamageText(int damage)
+    {
+        if (damageTextPrefab == null) return;
+
+        Vector3 pos = damagePopupPoint != null
+            ? damagePopupPoint.position
+            : transform.position + Vector3.up * 1.6f;
+
+        var t = Instantiate(damageTextPrefab, pos, Quaternion.identity);
+        t.Init(damage, Camera.main);
     }
     
 #if UNITY_EDITOR

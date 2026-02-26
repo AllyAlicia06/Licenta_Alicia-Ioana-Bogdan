@@ -63,6 +63,15 @@ public class TargetDetectionControl : MonoBehaviour
     {
         if (!canChangeTarget) return;
         if (playerControl == null) return;
+        
+        if (playerControl.target != null)
+        {
+            var current = playerControl.target.GetComponentInParent<EnemyBase>();
+            if (current != null && current.IsDead)
+            {
+                playerControl.NoTarget();
+            }
+        }
 
         Camera c = GetCamera();
         if (c == null) return;
@@ -75,7 +84,7 @@ public class TargetDetectionControl : MonoBehaviour
         if (Physics.Raycast(rayOrigin, rayDir, out RaycastHit hit, detectionRange, whatIsEnemy, QueryTriggerInteraction.Ignore))
         {
             var enemyBase = hit.collider.GetComponentInParent<EnemyBase>();
-            if (enemyBase != null && WithinPlayerRange(enemyBase.transform))
+            if (enemyBase != null && !enemyBase.IsDead && WithinPlayerRange(enemyBase.transform))
             {
                 if (playerControl.target != enemyBase.transform)
                     playerControl.ChangeTarget(enemyBase.transform);
@@ -123,6 +132,7 @@ public class TargetDetectionControl : MonoBehaviour
         {
             var enemyBase = col.GetComponentInParent<EnemyBase>();
             if (enemyBase == null) continue;
+            if (enemyBase.IsDead) continue;
 
             Transform enemy = enemyBase.transform;
 
