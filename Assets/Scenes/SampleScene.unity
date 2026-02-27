@@ -522,6 +522,9 @@ MonoBehaviour:
   attackYawOffsetDegrees: -10
   damageTextPrefab: {fileID: 0}
   damagePopupPoint: {fileID: 0}
+  spawnKillImpactFrame: 1
+  killImpactOffset: {x: 0, y: 1.2, z: 0}
+  killImpactPrefabOverride: {fileID: 0}
 --- !u!54 &83117952
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -2502,6 +2505,9 @@ MonoBehaviour:
   attackYawOffsetDegrees: -10
   damageTextPrefab: {fileID: 0}
   damagePopupPoint: {fileID: 0}
+  spawnKillImpactFrame: 1
+  killImpactOffset: {x: 0, y: 1.2, z: 0}
+  killImpactPrefabOverride: {fileID: 0}
 --- !u!1 &454698216 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 1645786095522272344, guid: d876f71e74b8f8c4f9be7bf1137f38cc,
@@ -5949,6 +5955,9 @@ MonoBehaviour:
   attackYawOffsetDegrees: -10
   damageTextPrefab: {fileID: 0}
   damagePopupPoint: {fileID: 0}
+  spawnKillImpactFrame: 1
+  killImpactOffset: {x: 0, y: 1.2, z: 0}
+  killImpactPrefabOverride: {fileID: 0}
 --- !u!54 &1119715352
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -9064,6 +9073,9 @@ MonoBehaviour:
   damageTextPrefab: {fileID: 6691743937819703022, guid: e7fb84924025af847ad0f194e34895a4,
     type: 3}
   damagePopupPoint: {fileID: 1966252819}
+  spawnKillImpactFrame: 1
+  killImpactOffset: {x: 0, y: 1.2, z: 0}
+  killImpactPrefabOverride: {fileID: 0}
 --- !u!195 &1596405499
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -9196,6 +9208,9 @@ MonoBehaviour:
   attackYawOffsetDegrees: -10
   damageTextPrefab: {fileID: 0}
   damagePopupPoint: {fileID: 0}
+  spawnKillImpactFrame: 1
+  killImpactOffset: {x: 0, y: 1.2, z: 0}
+  killImpactPrefabOverride: {fileID: 0}
 --- !u!54 &1601360396
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -10905,6 +10920,9 @@ MonoBehaviour:
   attackYawOffsetDegrees: -10
   damageTextPrefab: {fileID: 0}
   damagePopupPoint: {fileID: 0}
+  spawnKillImpactFrame: 1
+  killImpactOffset: {x: 0, y: 1.2, z: 0}
+  killImpactPrefabOverride: {fileID: 0}
 --- !u!54 &2003372990
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -12632,6 +12650,11 @@ MonoBehaviour:
   comboResetTime: 0.5
   comboGraceTime: 0.2
   debug: 1
+  defaultKillImpactVfxPrefab: {fileID: 3967680854690574330, guid: 457bf0e47dec75045a323e6f4dd3501d,
+    type: 3}
+  killImpactLifetime: 1.5
+  parentKillVfxToEnemy: 1
+  spawnOnlyOncePerSwing: 1
 --- !u!114 &8910894964888130067
 MonoBehaviour:
   m_ObjectHideFlags: 0

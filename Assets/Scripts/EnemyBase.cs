@@ -77,6 +77,14 @@ public class EnemyBase : MonoBehaviour
     [Header("Damage Text")]
     [SerializeField] private DamageText3D damageTextPrefab;
     [SerializeField] private Transform damagePopupPoint;
+    
+    [Header("Kill Impact Frame")]
+    [SerializeField] private bool spawnKillImpactFrame = true;
+    [SerializeField] private Vector3 killImpactOffset = new Vector3(0f, 1.2f, 0f);
+    [SerializeField] private GameObject killImpactPrefabOverride;
+    public bool SpawnKillImpactFrame => spawnKillImpactFrame;
+    public Vector3 KillImpactOffset => killImpactOffset;
+    public GameObject KillImpactPrefabOverride => killImpactPrefabOverride;
 
     // Start is called before the first frame update
     void Start()
@@ -418,17 +426,20 @@ public class EnemyBase : MonoBehaviour
         Destroy(gameObject);
     }
     
-    public void TakeDamage(int amount)
+    public bool TakeDamage(int amount)
     {
-        if (isDead) return;
+        if (isDead) return false;
 
         hp -= amount;
+        ShowDamageText(amount);
         if (hp <= 0)
         {
             Die();
-            return;
+            return true;
         }
+
         PlayHitReaction();
+        return false;
     }
 
     private void Die()

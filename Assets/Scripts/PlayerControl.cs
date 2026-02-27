@@ -45,6 +45,12 @@ public class PlayerControl : MonoBehaviour
     private EnemyBase currentTarget;
     
     private readonly HashSet<EnemyBase> hitThisSwing = new HashSet<EnemyBase>();
+    
+    [Header("Kill Impact Frame VFX")]
+    [SerializeField] private GameObject defaultKillImpactVfxPrefab;
+    [SerializeField] private float killImpactLifetime = 1.5f;
+    [SerializeField] private bool parentKillVfxToEnemy = true;
+    [SerializeField] private bool spawnOnlyOncePerSwing = true;
 
     // Start is called before the first frame update
     void Start()
@@ -223,10 +229,11 @@ public class PlayerControl : MonoBehaviour
         isAttacking = false;
     }
 
-    public void PerformAttack() //Animation event
+    public void PerformAttack() //Animation event -- impact frame ready
     {
         hitThisSwing.Clear();
-        
+        bool killSpawnedThisSwing = false;
+
         Collider[] cols = Physics.OverlapSphere(
             attackPos.position,
             attackRange,
@@ -244,20 +251,30 @@ public class PlayerControl : MonoBehaviour
                 if (debug) Debug.Log($"Overlap hit {col.name} but no EnemyBase in parents.");
                 continue;
             }
-            
+
             if (!hitThisSwing.Add(enemyBase)) continue;
+            if (enemyBase.IsDead) continue;
 
             int damage = 2;
-            enemyBase.TakeDamage(damage);
-            enemyBase.ShowDamageText(damage);
-            if (enemyBase.IsDead) continue;
+
+            bool killed = enemyBase.TakeDamage(damage);
+
+            if (killed)
+            {
+                if (enemyBase.SpawnKillImpactFrame)
+                {
+                    if (!spawnOnlyOncePerSwing || !killSpawnedThisSwing)
+                    {
+                        SpawnKillImpact(enemyBase);
+                        killSpawnedThisSwing = true;
+                    }
+                }
+                
+                continue;
+            }
+            
             enemyBase.SpawnHitVfx(enemyBase.transform.position);
 
-            if (enemyBase.IsDead)
-                continue;
-
-            if (debug) Debug.Log($"Hit enemy: {enemyBase.name} via collider {col.name}");
-        
             //knockback
             Vector3 knockbackDir = (enemyBase.transform.position - transform.position);
             knockbackDir.y = 0;
@@ -266,8 +283,34 @@ public class PlayerControl : MonoBehaviour
         }
     }
     
+    private void SpawnKillImpact(EnemyBase enemy)
+    {
+        if (enemy == null) return;
+
+        GameObject prefab = enemy.KillImpactPrefabOverride != null
+            ? enemy.KillImpactPrefabOverride
+            : defaultKillImpactVfxPrefab;
+
+        if (prefab == null) return;
+
+        Vector3 pos = enemy.transform.position + enemy.KillImpactOffset;
+
+        GameObject go = parentKillVfxToEnemy
+            ? Instantiate(prefab, pos, Quaternion.identity, enemy.transform)
+            : Instantiate(prefab, pos, Quaternion.identity);
+
+        if (killImpactLifetime > 0f)
+            Destroy(go, killImpactLifetime);
+    }
+    
     public void ChangeTarget(Transform target_)
     {
+        if (target_ == null)
+        {
+            NoTarget();
+            return;
+        }
+        
         var newEnemy = target_.GetComponentInParent<EnemyBase>() ?? target_.GetComponentInChildren<EnemyBase>();
         if (newEnemy == null) return;
 
